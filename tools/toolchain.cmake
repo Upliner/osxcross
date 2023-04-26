@@ -27,7 +27,7 @@ set(CMAKE_CXX_COMPILER "${OSXCROSS_TARGET_DIR}/bin/${OSXCROSS_HOST}-clang++")
 # where is the target environment
 set(CMAKE_FIND_ROOT_PATH
   "${OSXCROSS_SDK}"
-  "${OSXCROSS_TARGET_DIR}/macports/pkgs/opt/local")
+  "${OSXCROSS_TARGET_DIR}/macports/${CMAKE_SYSTEM_PROCESSOR}/pkgs/opt/local")
 
 # search for programs in the build host directories
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
@@ -40,5 +40,5 @@ set(CMAKE_AR "${OSXCROSS_TARGET_DIR}/bin/${OSXCROSS_HOST}-ar" CACHE FILEPATH "ar
 set(CMAKE_RANLIB "${OSXCROSS_TARGET_DIR}/bin/${OSXCROSS_HOST}-ranlib" CACHE FILEPATH "ranlib")
 set(CMAKE_INSTALL_NAME_TOOL "${OSXCROSS_TARGET_DIR}/bin/${OSXCROSS_HOST}-install_name_tool" CACHE FILEPATH "install_name_tool")
 
-set(ENV{PKG_CONFIG_LIBDIR} "${OSXCROSS_TARGET_DIR}/macports/pkgs/opt/local/lib/pkgconfig")
-set(ENV{PKG_CONFIG_SYSROOT_DIR} "${OSXCROSS_TARGET_DIR}/macports/pkgs")
+set(ENV{PKG_CONFIG_LIBDIR} "${OSXCROSS_TARGET_DIR}/macports/${CMAKE_SYSTEM_PROCESSOR}/pkgs/opt/local/lib/pkgconfig")
+set(ENV{PKG_CONFIG_SYSROOT_DIR} "${OSXCROSS_TARGET_DIR}/macports/${CMAKE_SYSTEM_PROCESSOR}/pkgs")

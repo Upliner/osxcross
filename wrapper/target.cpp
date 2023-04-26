@@ -172,7 +172,7 @@ bool Target::getSDKPath(std::string &path, bool MacOSX10_16Fix) const {
 
 bool Target::getMacPortsDir(std::string &path) const {
   path = execpath;
-  path += "/../macports";
+  path += "/../macports/" + target;
   return dirExists(path);
 }
 

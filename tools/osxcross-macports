@@ -67,6 +67,93 @@ unsupportedDepTarget()
   exit 1
 }
 
+selectMirror()
+{
+  echo "available mirrors:"
+  echo ""
+  echo "1: (https) packages.macports.org (United States)"
+  echo "2: (http)  mirrorservice.org (United Kingdom)"
+  echo "3: (https) nue.de.packages.macports.org (Germany)"
+  echo "4: (https) lil.fr.packages.macports.org (France)"
+  echo ""
+
+  local OK=0
+  local mirrorNumber
+
+  while [ $OK -ne 1 ]; do
+    echo -n "please enter the number of the mirror you want to use: "
+
+    if [ -n "$UNATTENDED" ]; then
+      echo "1"
+      mirrorNumber=1
+    else
+      read mirrorNumber
+    fi
+
+    case $mirrorNumber in
+      1) echo -n "https://packages.macports.org" > \
+          $SELECTEDMIRROR && OK=1 ;;
+      2) echo -n "http://www.mirrorservice.org/sites/packages.macports.org" > \
+          $SELECTEDMIRROR && OK=1 ;;
+      3) echo -n "https://nue.de.packages.macports.org/macports/packages" > \
+          $SELECTEDMIRROR && OK=1 ;;
+      4) echo -n "https://lil.fr.packages.macports.org" > \
+          $SELECTEDMIRROR && OK=1 ;;
+      *) echo "please enter a number between 1 and 4..." 1>&2 ;;
+    esac
+  done
+
+  MIRROR=$(cat $SELECTEDMIRROR)
+}
+
+showHelpText()
+{
+  errorMsg "please see README.MACPORTS"
+}
+
+parse_args()
+{
+  cmd=""
+  args=""
+  for opt in $@; do
+    if [[ $opt == -* ]]; then
+      if [ $opt == "-v" -o $opt == "--verbose" ]; then
+        VERBOSE=1
+      elif [ $opt == "-v=2" -o $opt == "--verbose=2" ]; then
+        set -x
+        VERBOSE=1
+      elif [ $opt == "-s" -o $opt == "--static" ]; then
+        STATIC=1
+      elif [ $opt == "-c" -o $opt == "--cflags" ]; then
+        showCFLAGS $2
+        exit
+      elif [ $opt == "-l" -o $opt == "--ldflags" ]; then
+        showLDFLAGS $2
+        exit
+      elif [ $opt == "-32" -o $opt == "--i386" ]; then
+        ARCH="i386"
+      elif [ $opt == "-arm64" -o $opt == "--arm64" ]; then
+        ARCH="arm64"
+      elif [ $opt == "-sm" -o $opt == "--select-mirror" ]; then
+        selectMirror
+        exit
+      elif [ $opt == "-h" -o $opt == "--help" ]; then
+        showHelpText
+        exit
+      else
+        errorMsg "unknown option: $opt"
+        exit 1
+      fi
+    else
+      if [ -z "$cmd" ]; then
+        cmd="$opt"
+      else
+        args+="$opt "
+      fi
+    fi
+  done
+}
+
 require "openssl"
 
 case $MACOSX_DEPLOYMENT_TARGET in
@@ -94,7 +181,9 @@ if [ -z "$OSXCROSS_TARGET_DIR" ]; then
   exit 1
 fi
 
-ROOT="$OSXCROSS_TARGET_DIR/macports"
+parse_args "$@"
+
+ROOT="$OSXCROSS_TARGET_DIR/macports/$ARCH"
 
 if [ ! -d "$ROOT" ]; then
   echo "creating macports directory: $ROOT"
@@ -141,44 +230,6 @@ createDir "cache" $CACHE
 createDir "install" $INSTALL
 createDir "tmp" $TMP
 
-selectMirror()
-{
-  echo "available mirrors:"
-  echo ""
-  echo "1: (https) packages.macports.org (United States)"
-  echo "2: (http)  mirrorservice.org (United Kingdom)"
-  echo "3: (https) nue.de.packages.macports.org (Germany)"
-  echo "4: (https) lil.fr.packages.macports.org (France)"
-  echo ""
-
-  local OK=0
-  local mirrorNumber
-
-  while [ $OK -ne 1 ]; do
-    echo -n "please enter the number of the mirror you want to use: "
-
-    if [ -n "$UNATTENDED" ]; then
-      echo "1"
-      mirrorNumber=1
-    else
-      read mirrorNumber
-    fi
-
-    case $mirrorNumber in
-      1) echo -n "https://packages.macports.org" > \
-          $SELECTEDMIRROR && OK=1 ;;
-      2) echo -n "http://www.mirrorservice.org/sites/packages.macports.org" > \
-          $SELECTEDMIRROR && OK=1 ;;
-      3) echo -n "https://nue.de.packages.macports.org/macports/packages" > \
-          $SELECTEDMIRROR && OK=1 ;;
-      4) echo -n "https://lil.fr.packages.macports.org" > \
-          $SELECTEDMIRROR && OK=1 ;;
-      *) echo "please enter a number between 1 and 4..." 1>&2 ;;
-    esac
-  done
-
-  MIRROR=$(cat $SELECTEDMIRROR)
-}
 
 function download()
 {
@@ -513,7 +564,7 @@ _exit()
 showFlags()
 {
   if [ -n "$OSXCROSS_TARGET" ]; then
-    PKG_CONFIG="x86_64-apple-${OSXCROSS_TARGET}-pkg-config"
+    PKG_CONFIG="${ARCH}-apple-${OSXCROSS_TARGET}-pkg-config"
   else
     PKG_CONFIG="pkg-config"
   fi
@@ -565,65 +616,19 @@ removeDylibs()
   find $INSTALL -name "*.dylib" -exec rm {} \;
 }
 
-showHelpText()
-{
-  errorMsg "please see README.MACPORTS"
-}
 
 main()
 {
-  local args
-  local cmd
-
-  MIRROR="$OSXCROSS_MACPORTS_MIRROR"
 
   if [ -z "$MIRROR" ] && [ -f "$SELECTEDMIRROR" ]; then
     MIRROR=$(cat $SELECTEDMIRROR | head -n1)
+  else
+    MIRROR="$OSXCROSS_MACPORTS_MIRROR"
   fi
 
   if [ -z "$MIRROR" ]; then
     selectMirror
   fi
-
-  for opt in $@; do
-    if [[ $opt == -* ]]; then
-      if [ $opt == "-v" -o $opt == "--verbose" ]; then
-        VERBOSE=1
-      elif [ $opt == "-v=2" -o $opt == "--verbose=2" ]; then
-        set -x
-        VERBOSE=1
-      elif [ $opt == "-s" -o $opt == "--static" ]; then
-        STATIC=1
-      elif [ $opt == "-c" -o $opt == "--cflags" ]; then
-        showCFLAGS $2
-        exit
-      elif [ $opt == "-l" -o $opt == "--ldflags" ]; then
-        showLDFLAGS $2
-        exit
-      elif [ $opt == "-32" -o $opt == "--i386" ]; then
-        ARCH="i386"
-      elif [ $opt == "-universal" -o $opt == "--universal" ]; then
-        ARCH="i386-x86_64"
-      elif [ $opt == "-arm64" -o $opt == "--arm64" ]; then
-        ARCH="arm64"
-      elif [ $opt == "-sm" -o $opt == "--select-mirror" ]; then
-        selectMirror
-        exit
-      elif [ $opt == "-h" -o $opt == "--help" ]; then
-        showHelpText
-        exit
-      else
-        errorMsg "unknown option: $opt"
-        exit 1
-      fi
-    else
-      if [ -z "$cmd" ]; then
-        cmd="$opt"
-      else
-        args+="$opt "
-      fi
-    fi
-  done
 
   if [ -z "$cmd" ]; then
     errorMsg "no command given"
@@ -695,4 +700,4 @@ trap '' INT
 
 trap _exit EXIT
 
-main "$@"
+main
